@@ -66,6 +66,16 @@ const COLUMNS: Column[] = [
   { key: "actions", label: "Acciones" },
 ];
 
+const options = [{
+  value: 'faltantes',
+  label: 'Faltantes'
+}, {
+  value: 'claimeadas',
+  label: 'Claimeadas'
+},
+]
+
+
 const cartas = ref([]);
 const currentPage = ref(1);
 const totalPages = ref(1);
@@ -79,6 +89,7 @@ const state = {
   currentPokemon: ref<Pokemon | null>(null),
   modalEstado: ref(false),
   modalFiltro: ref(false),
+  selectedFilterStatus: ref(),
   selectedStatus: ref(),
   estados: ref<Estado[]>([]),
   pokemons: ref<Pokemon[]>([]),
@@ -90,7 +101,9 @@ const state = {
   modalCarta: ref(false),
   modalNota: ref(false),
   selectedCard: ref<any>(null),
-  nota: ref("")
+  nota: ref(""),
+  modalShare: ref(false),
+  optionSelected: ref('')
 };
 
 // Supabase Client
@@ -132,6 +145,8 @@ const fetchCard = async (row: Pokemon) => {
 };
 
 const toast = useToast()
+let tel = ""
+let contact = ""
 
 async function fetchPokemons() {
   let query = supabase.from("pokedex").select("*, status (*), tipo (*)")
@@ -143,8 +158,8 @@ async function fetchPokemons() {
       query = query.eq("generation", 1);
     }
   }
-  if (state.selectedStatus.value) {
-    query = query.eq("status", state.selectedStatus.value.value);
+  if (state.selectedFilterStatus.value) {
+    query = query.eq("status", state.selectedFilterStatus.value.value);
   }
   state.loadingTable.value = true;
   try {
@@ -256,12 +271,20 @@ function createShareActionsItems() {
     [
       {
         label: "Enviar a Tincho",
-        click: async () => { sendWapp('543854866131') },
+        click: async () => {
+          tel = '543854866131'
+          contact = 'Tincho'
+          state.modalShare.value = true
+        },
         icon: 'i-heroicons-paper-airplane-solid'
       },
       {
         label: "Enviar a Agoto",
-        click: async () => { sendWapp('543855048767') },
+        click: async () => {
+          tel = '543855048767'
+          contact = 'Agoto'
+          state.modalShare.value = true
+        },
         icon: 'i-heroicons-paper-airplane-solid'
       },
     ],
@@ -277,14 +300,16 @@ function debounce(func: Function, wait: number) {
   };
 }
 
-async function sendWapp(tel: string) {
-  let lista = "Nos falta:%0A"
+async function sendWapp() {
+  let lista = state.optionSelected.value == 'faltantes' ? "*Cartas faltantes en la dex:*%0A" : "*Cartas claimeadas:*%0A"
+  let query = supabase.from("pokedex").select("*").order("number");
+  if (state.optionSelected.value == 'faltantes') {
+    query = query.eq("status", 1)
+  } else if (state.optionSelected.value == 'claimeadas') {
+    query = query.eq("status", 2)
+  }
   try {
-    const { data, error } = await supabase
-      .from("pokedex")
-      .select("*")
-      .eq("catched", false)
-      .order("number");
+    const { data, error } = await query
     if (error) throw error;
     const response = data || [];
     const generations: { [key: number]: string[] } = {};
@@ -293,14 +318,15 @@ async function sendWapp(tel: string) {
       if (!generations[generation]) {
         generations[generation] = [];
       }
-      generations[generation].push(name + '%0A');
+      generations[generation].push(name);
     });
 
     // Build the list
     for (let gen = 1; gen <= 9; gen++) {
       if (generations[gen]) {
-        lista += `%0A*Generacion ${gen}*%0A`; // Add generation header
-        lista += generations[gen].join("") + "%0A"; // Add Pokémon names
+        const count = generations[gen].length;
+        lista += `%0AGen ${gen} (${count})%0A`; // Add generation header with count
+        lista += generations[gen].join(", ") + "%0A"; // Add Pokémon names
       }
     }
 
@@ -322,6 +348,8 @@ function copyToClipboard() {
 async function updateStatus() {
   const statusId = state.selectedStatus.value.value;
   const pokemonId = state.currentPokemon.value?.id;
+  console.log(statusId, pokemonId);
+
   state.updating.value = true;
   if (statusId === 3) {
     try {
@@ -435,8 +463,8 @@ onMounted(fetchPokemons);
         <UInput v-model="state.search.value" placeholder="Buscar Pokemon..." />
         <UButton @click="state.modalFiltro.value = true" icon="i-heroicons-adjustments-vertical" size="sm"
           color="primary" variant="solid" label="Filtrar" :trailing="false" />
-        <UButton v-if="state.currentGeneration.value || state.selectedStatus.value"
-          @click="state.currentGeneration.value = null; state.selectedStatus.value = null; fetchPokemons()"
+        <UButton v-if="state.currentGeneration.value || state.selectedFilterStatus.value"
+          @click="state.currentGeneration.value = null; state.selectedFilterStatus.value = null; fetchPokemons()"
           icon="i-heroicons-x-circle-solid" size="sm" color="red" variant="soft" label="Limpiar filtros"
           :trailing="false" />
       </div>
@@ -672,9 +700,9 @@ onMounted(fetchPokemons);
           <div class="flex justify-between mb-2 items-center">
             <h1 class="font-medium text-gray-200">Estado</h1>
             <UButton icon="i-heroicons-x-circle-solid" size="2xs" color="red" variant="outline" label="Limpiar filtro"
-              :trailing="false" @click="state.selectedStatus.value = []" />
+              :trailing="false" @click="state.selectedFilterStatus.value = []" />
           </div>
-          <USelectMenu v-model="state.selectedStatus.value" :options="STATUSES" class="pb-8"
+          <USelectMenu v-model="state.selectedFilterStatus.value" :options="STATUSES" class="pb-8"
             placeholder="Elija un estado">
             <template #option="{ option: STATUSES }">
               <UBadge class="cursor-pointer" :color="STATUSES.label === 'Buscada'
@@ -691,6 +719,20 @@ onMounted(fetchPokemons);
         <template #footer>
           <div class=" flex justify-end">
             <UButton @click="aplicarFiltros">Aplicar</UButton>
+          </div>
+        </template>
+      </UCard>
+    </UModal>
+    <UModal v-model="state.modalShare.value">
+      <UCard>
+        <template #header>Compartir con {{ contact }}</template>
+        <URadioGroup v-model="state.optionSelected.value" legend="Elije que lista quieres compartir"
+          :options="options" />
+
+        <template #footer>
+          <div class="flex justify-end">
+            <UButton @click="sendWapp" :loading="state.updating.value" :disabled="state.optionSelected.value == ''">
+              Compartir por Whastapp</UButton>
           </div>
         </template>
       </UCard>
