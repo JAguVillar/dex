@@ -452,7 +452,8 @@ onMounted(fetchPokemons);
     <UTable :rows="state.pokemons.value" :columns="COLUMNS" :loading="state.loadingTable.value">
       <template #catched-data="{ row }">
 
-        <UIcon name="i-heroicons-check-badge-solid" class="text-green-400 ms-auto size-6 mx-auto" />
+        <UIcon v-if="row.catched" name="i-heroicons-check-badge-solid" class="text-green-400 ms-auto size-6 mx-auto" />
+        <UIcon v-else name="i-heroicons-question-mark-circle-solid" class="text-gray-400 ms-auto size-6 mx-auto" />
 
         <!-- <template v-if="row.catched == true">
           <img :src="`/images/Pokeball_${row.tipo.id}.png`" alt="" srcset="" width="32" />
