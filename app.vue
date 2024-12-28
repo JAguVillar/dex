@@ -316,6 +316,7 @@ async function sendWapp() {
     response.forEach(pokemon => {
       const { generation, name } = pokemon;
       if (!generations[generation]) {
+
         generations[generation] = [];
       }
       generations[generation].push(name);
