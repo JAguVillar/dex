@@ -103,7 +103,10 @@ const state = {
   selectedCard: ref<any>(null),
   nota: ref(""),
   modalShare: ref(false),
-  optionSelected: ref('')
+  optionSelected: ref(''),
+  modalArtwork: ref(false),
+  artwork: ref(false),
+
 };
 
 // Supabase Client
@@ -444,6 +447,12 @@ function getCurrentPokemon(row: Pokemon) {
   state.nota.value = row.note
 }
 
+function handleClick(row: Pokemon) {
+  console.log(`Clicked on ${row.artwork}`);
+  state.currentPokemon.value = row;
+  state.modalArtwork.value = true;
+}
+
 watch(state.search, (value) => {
   debouncedSearch(value)
 });
@@ -478,12 +487,10 @@ onMounted(fetchPokemons);
       </UDropdown>
 
     </div>
-    <UTable :rows="state.pokemons.value" :columns="COLUMNS" :loading="state.loadingTable.value">
+    <UTable :rows="state.pokemons.value" :columns="COLUMNS" :loading="state.loadingTable.value" @select="handleClick">
       <template #catched-data="{ row }">
-
         <UIcon v-if="row.catched" name="i-heroicons-check-badge-solid" class="text-green-400 ms-auto size-6 mx-auto" />
         <UIcon v-else name="i-heroicons-question-mark-circle-solid" class="text-gray-400 ms-auto size-6 mx-auto" />
-
         <!-- <template v-if="row.catched == true">
           <img :src="`/images/Pokeball_${row.tipo.id}.png`" alt="" srcset="" width="32" />
         </template>
@@ -735,6 +742,26 @@ onMounted(fetchPokemons);
             <UButton @click="sendWapp" :loading="state.updating.value" :disabled="state.optionSelected.value == ''">
               Compartir por Whastapp</UButton>
           </div>
+        </template>
+      </UCard>
+    </UModal>
+    <UModal v-model="state.modalArtwork.value">
+      <UCard>
+        <template #header>
+          <span class="capitalize">
+            {{ state.currentPokemon.value?.name }}
+          </span>
+        </template>
+        <img :src="state.artwork.value ? state.currentPokemon.value?.artwork : state.currentPokemon.value?.sprite"
+          alt="" srcset="" width="300" class="mx-auto">
+        <template #footer>
+          <UButtonGroup size="sm" orientation="horizontal">
+            <UButton block :disabled="!state.artwork.value" @click="state.artwork.value = !state.artwork.value">Artwork
+            </UButton>
+            <UButton block :disabled="state.artwork.value" @click="state.artwork.value = !state.artwork.value">Sprite
+            </UButton>
+
+          </UButtonGroup>
         </template>
       </UCard>
     </UModal>
